@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Flappy Bird - Concierto</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(to bottom, #1a0033, #330066);
+            overflow: hidden;
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        #gameCanvas {
+            display: block;
+            margin: 0 auto;
+            background: linear-gradient(to bottom, #1a0033 0%, #330066 50%, #660099 100%);
+            border: 2px solid #333;
+            cursor: pointer;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            z-index: 10;
+        }
+
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            font-size: 24px;
+            display: none;
+            z-index: 20;
+            border: 2px solid #ff00ff;
+        }
+
+        #startScreen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            font-size: 20px;
+            z-index: 20;
+            border: 2px solid #00ffff;
+        }
+
+        .button {
+            background: linear-gradient(45deg, #ff00ff, #00ffff);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 8px rgba(255,0,255,0.3);
+        }
+
+        .button:hover, .button:active {
+            transform: scale(1.05);
+            box-shadow: 0 6px 12px rgba(255,0,255,0.5);
+        }
+
+        #instructions {
+            margin: 20px 0;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        h1 {
+            background: linear-gradient(45deg, #ff00ff, #00ffff, #ffff00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="ui">
+            <div>Puntos: <span id="score">0</span></div>
+            <div>Mejor: <span id="highScore">0</span></div>
+        </div>
+
+        <div id="startScreen">
+            <h1>🎵 Flappy Concert 🎵</h1>
+            <div id="instructions">
+                <p>🎤 ¡que jk vuele! 🎤</p>
+                <p>Evita las luces del concierto</p>
+                <p>¡tu puedes hermosaaaa!</p>
+            </div>
+            <button class="button" onclick="startGame()">🎸 Empezar Concierto 🎸</button>
+        </div>
+
+        <div id="gameOver">
+            <h2>😹 ¡JAJAJA POR NUV! 😜</h2>
+            <p>Puntuación: <span id="finalScore">0</span></p>
+            <p>Mejor puntuación(te amo): <span id="finalHighScore">0</span></p>
+            <button class="button" onclick="restartGame()">🎪 ¿otro o q? 💕</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Configuración del canvas para móvil
+        function resizeCanvas() {
+            canvas.width = Math.min(window.innerWidth - 20, 400);
+            canvas.height = Math.min(window.innerHeight - 20, 600);
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Variables del juego
+        let gameState = 'start';
+        let score = 0;
+        let highScore = 0;
+
+        // Variables para imágenes
+        let imagesLoaded = false;
+        let loadedImages = 0;
+        let totalImages = 3; 
+        
+        const birdImageUp = new Image();    
+        const birdImageDown = new Image();  
+        const pipeImage = new Image();
+        
+        birdImageUp.src = 'img/bird_up.png';     
+        birdImageDown.src = 'img/bird_down.png';
+        pipeImage.src = 'img/pipels.png';         
+        
+        function imageLoaded() {
+            loadedImages++;
+            if (loadedImages >= totalImages) {
+                imagesLoaded = true;
+                console.log('Todas las imágenes cargadas');
+            }
+        }
+        
+        birdImageUp.onload = imageLoaded;
+        birdImageDown.onload = imageLoaded;
+        pipeImage.onload = imageLoaded;
+        
+        birdImageUp.onerror = function() {
+            console.log('Error cargando imagen del pájaro subiendo, usando gráficos por defecto');
+            imageLoaded();
+        };
+        birdImageDown.onerror = function() {
+            console.log('Error cargando imagen del pájaro cayendo, usando gráficos por defecto');
+            imageLoaded();
+        };
+        pipeImage.onerror = function() {
+            console.log('Error cargando imagen del tubo, usando gráficos por defecto');
+            imageLoaded();
+        };
+
+        // Pájaro
+        const bird = {
+            x: 80,
+            y: canvas.height / 2,
+            width: 40,
+            height: 35,
+            velocity: 0,
+            gravity: 0.3,
+            jumpStrength: -5,
+            rotation: 0,
+            isJumping: false,
+            jumpTimer: 0
+        };
+
+        // Tubos (ahora serán estructuras de luces/altavoces)
+        const pipes = [];
+        const pipeWidth = 60;
+        const pipeGap = 140;
+        let frameCount = 0;
+
+        // Variables para efectos del concierto
+        let lightColors = ['#ff00ff', '#00ffff', '#ffff00', '#ff0080', '#0080ff', '#80ff00'];
+        let currentLightColor = 0;
+
+        function createPipe() {
+            const pipeHeight = Math.random() * (canvas.height - pipeGap - 200) + 100;
+            pipes.push({
+                x: canvas.width,
+                top: pipeHeight,
+                bottom: pipeHeight + pipeGap,
+                passed: false
+            });
+        }
+
+        // Función para dibujar el fondo del escenario
+        function drawConcertBackground() {
+            // Cielo nocturno con gradiente
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#1a0033');
+            gradient.addColorStop(0.3, '#330066');
+            gradient.addColorStop(0.7, '#660099');
+            gradient.addColorStop(1, '#220044');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Escenario en la parte inferior
+            ctx.fillStyle = '#2a2a2a';
+            ctx.fillRect(0, canvas.height - 80, canvas.width, 80);
+            
+            // Detalles del escenario
+            ctx.fillStyle = '#444444';
+            ctx.fillRect(0, canvas.height - 75, canvas.width, 5);
+            ctx.fillRect(0, canvas.height - 60, canvas.width, 3);
+
+            // Audiencia (siluetas)
+            ctx.fillStyle = '#111111';
+            for(let i = 0; i < canvas.width; i += 15) {
+                const height = 20 + Math.random() * 15;
+                ctx.fillRect(i, canvas.height - height - 80, 12, height);
+            }
+
+            // Luces de escenario (focos)
+            for(let i = 0; i < 4; i++) {
+                const x = (canvas.width / 5) * (i + 1);
+                const y = 30;
+                
+                // Foco
+                ctx.fillStyle = '#333333';
+                ctx.fillRect(x - 15, y - 10, 30, 20);
+                
+                // Haz de luz
+                const lightColor = lightColors[(currentLightColor + i) % lightColors.length];
+                const gradient = ctx.createLinearGradient(x, y, x, canvas.height - 80);
+                gradient.addColorStop(0, lightColor + '80');
+                gradient.addColorStop(1, lightColor + '10');
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.moveTo(x - 5, y + 10);
+                ctx.lineTo(x - 40, canvas.height - 80);
+                ctx.lineTo(x + 40, canvas.height - 80);
+                ctx.lineTo(x + 5, y + 10);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // Efectos de partículas brillantes (confeti/luces)
+            for(let i = 0; i < 10; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * (canvas.height - 100);
+                const size = 2 + Math.random() * 3;
+                const sparkleColor = lightColors[Math.floor(Math.random() * lightColors.length)];
+                
+                ctx.fillStyle = sparkleColor;
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Cambiar color de luces cada 60 frames
+            if (frameCount % 60 === 0) {
+                currentLightColor = (currentLightColor + 1) % lightColors.length;
+            }
+        }
+
+        // Función para dibujar el pájaro con efectos de concierto
+        function drawBird() {
+            ctx.save();
+            ctx.translate(bird.x + bird.width/2, bird.y + bird.height/2);
+            ctx.rotate(bird.rotation);
+            
+            let currentBirdImage = null;
+            
+            if (imagesLoaded) {
+                if (bird.isJumping && bird.jumpTimer > 0) {
+                    currentBirdImage = birdImageUp.complete ? birdImageUp : null;
+                } else {
+                    currentBirdImage = birdImageDown.complete ? birdImageDown : null;
+                }
+            }
+            
+            if (currentBirdImage) {
+                // Agregar efecto de brillo al pájaro
+                ctx.shadowColor = lightColors[currentLightColor];
+                ctx.shadowBlur = 10;
+                ctx.drawImage(currentBirdImage, -bird.width/2, -bird.height/2, bird.width, bird.height);
+                ctx.shadowBlur = 0;
+            } else {
+                // Pájaro con colores de concierto
+                if (bird.isJumping && bird.jumpTimer > 0) {
+                    ctx.fillStyle = '#FFD700';
+                    ctx.shadowColor = '#FFD700';
+                    ctx.shadowBlur = 15;
+                } else {
+                    ctx.fillStyle = '#FF69B4';
+                    ctx.shadowColor = '#FF69B4';
+                    ctx.shadowBlur = 10;
+                }
+                
+                ctx.fillRect(-bird.width/2, -bird.height/2, bird.width, bird.height);
+                
+                // Detalles del pájaro con efectos brillantes
+                ctx.fillStyle = bird.isJumping && bird.jumpTimer > 0 ? '#FF1493' : '#FF6347';
+                ctx.fillRect(-bird.width/2 + 5, -bird.height/2 + 5, 15, 10);
+                
+                // Ojo brillante
+                ctx.fillStyle = 'white';
+                ctx.fillRect(-bird.width/2 + 18, -bird.height/2 + 3, 8, 8);
+                ctx.fillStyle = lightColors[currentLightColor];
+                ctx.fillRect(-bird.width/2 + 20, -bird.height/2 + 5, 4, 4);
+                
+                // Pico con efecto metálico
+                ctx.fillStyle = '#C0C0C0';
+                ctx.fillRect(bird.width/2 - 5, -3, 8, 6);
+                
+                ctx.shadowBlur = 0;
+            }
+            
+            ctx.restore();
+        }
+
+        // Función para dibujar las estructuras del concierto (ex-tubos)
+        function drawConcertStructures() {
+            pipes.forEach((pipe, index) => {
+                if (imagesLoaded && pipeImage.complete) {
+                    // Usar imagen con efectos de luces
+                    ctx.save();
+                    ctx.shadowColor = lightColors[(index + currentLightColor) % lightColors.length];
+                    ctx.shadowBlur = 5;
+                    
+                    // Estructura superior
+                    ctx.save();
+                    ctx.translate(pipe.x + pipeWidth/2, pipe.top/2);
+                    ctx.scale(1, -1);
+                    ctx.drawImage(pipeImage, -pipeWidth/2, -pipe.top/2, pipeWidth, pipe.top);
+                    ctx.restore();
+                    
+                    // Estructura inferior
+                    ctx.drawImage(pipeImage, pipe.x, pipe.bottom, pipeWidth, canvas.height - pipe.bottom);
+                    ctx.restore();
+                } else {
+                    // Torres de altavoces y luces
+                    const structureColor = lightColors[(index + currentLightColor) % lightColors.length];
+                    
+                    // Gradiente para dar efecto metálico
+                    const gradient1 = ctx.createLinearGradient(pipe.x, 0, pipe.x + pipeWidth, 0);
+                    gradient1.addColorStop(0, '#444444');
+                    gradient1.addColorStop(0.5, structureColor + '40');
+                    gradient1.addColorStop(1, '#222222');
+                    
+                    ctx.fillStyle = gradient1;
+                    ctx.strokeStyle = structureColor;
+                    ctx.lineWidth = 2;
+                    
+                    // Estructura superior (torre de luces)
+                    ctx.fillRect(pipe.x, 0, pipeWidth, pipe.top);
+                    ctx.strokeRect(pipe.x, 0, pipeWidth, pipe.top);
+                    
+                    // Estructura inferior (altavoces)
+                    ctx.fillRect(pipe.x, pipe.bottom, pipeWidth, canvas.height - pipe.bottom);
+                    ctx.strokeRect(pipe.x, pipe.bottom, pipeWidth, canvas.height - pipe.bottom);
+                    
+                    // Detalles de altavoces
+                    for(let i = 0; i < 3; i++) {
+                        const speakerY = pipe.bottom + 20 + i * 30;
+                        if (speakerY < canvas.height - 80) {
+                            ctx.fillStyle = '#111111';
+                            ctx.beginPath();
+                            ctx.arc(pipe.x + pipeWidth/2, speakerY, 10, 0, Math.PI * 2);
+                            ctx.fill();
+                            
+                            ctx.fillStyle = structureColor;
+                            ctx.beginPath();
+                            ctx.arc(pipe.x + pipeWidth/2, speakerY, 6, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    }
+                    
+                    // Luces en la estructura superior
+                    for(let i = 0; i < 2; i++) {
+                        const lightY = 20 + i * 25;
+                        if (lightY < pipe.top) {
+                            ctx.fillStyle = lightColors[(index + i + currentLightColor) % lightColors.length];
+                            ctx.shadowColor = ctx.fillStyle;
+                            ctx.shadowBlur = 15;
+                            ctx.beginPath();
+                            ctx.arc(pipe.x + pipeWidth/2, lightY, 8, 0, Math.PI * 2);
+                            ctx.fill();
+                            ctx.shadowBlur = 0;
+                        }
+                    }
+                }
+            });
+        }
+
+        function update() {
+            if (gameState !== 'playing') return;
+
+            bird.velocity += bird.gravity;
+            bird.y += bird.velocity;
+            
+            if (bird.jumpTimer > 0) {
+                bird.jumpTimer--;
+                if (bird.jumpTimer <= 0) {
+                    bird.isJumping = false;
+                }
+            }
+            
+            bird.rotation = Math.min(Math.max(bird.velocity * 0.1, -0.5), 0.5);
+
+            if (frameCount % 120 === 0) {
+                createPipe();
+            }
+
+            pipes.forEach((pipe, index) => {
+                pipe.x -= 2;
+
+                if (!pipe.passed && pipe.x + pipeWidth < bird.x) {
+                    pipe.passed = true;
+                    score++;
+                    document.getElementById('score').textContent = score;
+                }
+
+                if (pipe.x + pipeWidth < 0) {
+                    pipes.splice(index, 1);
+                }
+            });
+
+            checkCollisions();
+            frameCount++;
+        }
+
+        function checkCollisions() {
+            if (bird.y + bird.height > canvas.height - 80 || bird.y < 0) {
+                gameOver();
+                return;
+            }
+
+            pipes.forEach(pipe => {
+                if (bird.x < pipe.x + pipeWidth && 
+                    bird.x + bird.width > pipe.x) {
+                    if (bird.y < pipe.top || bird.y + bird.height > pipe.bottom) {
+                        gameOver();
+                    }
+                }
+            });
+        }
+
+        function jump() {
+            if (gameState === 'playing') {
+                bird.velocity = bird.jumpStrength;
+                bird.isJumping = true;
+                bird.jumpTimer = 10;
+            }
+        }
+
+        function startGame() {
+            gameState = 'playing';
+            document.getElementById('startScreen').style.display = 'none';
+            resetGame();
+        }
+
+        function restartGame() {
+            document.getElementById('gameOver').style.display = 'none';
+            startGame();
+        }
+
+        function resetGame() {
+            bird.y = canvas.height / 2;
+            bird.velocity = 0;
+            bird.rotation = 0;
+            bird.isJumping = false;
+            bird.jumpTimer = 0;
+            pipes.length = 0;
+            score = 0;
+            frameCount = 0;
+            document.getElementById('score').textContent = score;
+        }
+
+        function gameOver() {
+            gameState = 'gameOver';
+            
+            if (score > highScore) {
+                highScore = score;
+            }
+            
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('finalHighScore').textContent = highScore;
+            document.getElementById('highScore').textContent = highScore;
+            document.getElementById('gameOver').style.display = 'block';
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            drawConcertBackground();
+            drawConcertStructures();
+            drawBird();
+            
+            update();
+            requestAnimationFrame(draw);
+        }
+
+        canvas.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            jump();
+        });
+
+        canvas.addEventListener('click', jump);
+
+        canvas.addEventListener('touchmove', function(e) {
+            e.preventDefault();
+        });
+
+        canvas.addEventListener('touchend', function(e) {
+            e.preventDefault();
+        });
+
+        draw();
+    </script>
+</body>
+</html>
